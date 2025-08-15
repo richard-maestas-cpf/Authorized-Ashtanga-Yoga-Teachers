@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.33">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Richard A. Maestas">
+
+<title>Harvesting Ashtanga Yoga Teacher Data</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="Harvest Teacher Data_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Harvest Teacher Data_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="Harvest Teacher Data_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="Harvest Teacher Data_files/libs/quarto-html/popper.min.js"></script>
+<script src="Harvest Teacher Data_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Harvest Teacher Data_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Harvest Teacher Data_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Harvest Teacher Data_files/libs/quarto-html/quarto-syntax-highlighting-ea385d0e468b0dd5ea5bf0780b1290d9.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Harvest Teacher Data_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Harvest Teacher Data_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Harvest Teacher Data_files/libs/bootstrap/bootstrap-81267100e462c21b3d6c0d5bf76a3417.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Harvesting Ashtanga Yoga Teacher Data</h1>
+<p class="subtitle lead">Web Scraping Example</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Richard A. Maestas </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="summary" class="level3">
+<h3 class="anchored" data-anchor-id="summary">Summary</h3>
+<p>In this tutorial, I will download the HTML from the <a href="https://sharathyogacentre.com/authorised-teachers-directory/">teacher directory</a> section of the Sharath Yoga Centre website.</p>
+<p>This directory lists some basic info on each of the authorized Ashtanga Yoga teachers in the world. It has a decent summary view option but it would be great to be able to see this summary in an interactive world map. It would also be nice to add some other summary statistics related to what level of authorizations are across the teacher network (level 1, level 2) and the Shala/Website associated with each teacher. Maybe this will give us some insight into how many of these teachers are actively teaching.</p>
+<p>I will focus on the process of downloading the data and transforming it from HTML to a usable dataframe. A future tutorial will expand on using the data for a dashboard using Shiny that will feature the interactive map.</p>
+</section>
+<section id="part-1-syc" class="level2">
+<h2 class="anchored" data-anchor-id="part-1-syc">Part 1: SYC</h2>
+<section id="step-1.-setup-and-load-web-page" class="level3">
+<h3 class="anchored" data-anchor-id="step-1.-setup-and-load-web-page">Step 1. Setup and Load Web Page</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Download HTML from Webpage</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>url <span class="ot">&lt;-</span> <span class="st">"https://sharathyogacentre.com/authorised-teachers-directory/?wpbdp_view=all_listings"</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>syc_webpage_html <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="step-2.-extract-all-listing-details" class="level3">
+<h3 class="anchored" data-anchor-id="step-2.-extract-all-listing-details">Step 2. Extract <em>all</em> Listing Details</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>nodes <span class="ot">&lt;-</span> syc_webpage_html <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">".listing-details"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="step-3.-get-plain-text-for-each-listing" class="level3">
+<h3 class="anchored" data-anchor-id="step-3.-get-plain-text-for-each-listing">Step 3. Get Plain Text for Each Listing</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>raw_listings <span class="ot">&lt;-</span> nodes <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="step-4.-parse-listings" class="level3">
+<h3 class="anchored" data-anchor-id="step-4.-parse-listings">Step 4. Parse Listings</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>parse_listing <span class="ot">&lt;-</span> <span class="cf">function</span>(text) {</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Clean excessive whitespace</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  clean <span class="ot">&lt;-</span> <span class="fu">str_squish</span>(text)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Extract using regular expressions</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  name <span class="ot">&lt;-</span> <span class="fu">str_match</span>(clean, <span class="st">"^Name (.*?) Authorisation Level"</span>)[,<span class="dv">2</span>]</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  auth_level <span class="ot">&lt;-</span> <span class="fu">str_match</span>(clean, <span class="st">"Authorisation Level (.*?) Shala Name"</span>)[,<span class="dv">2</span>]</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  shala <span class="ot">&lt;-</span> <span class="fu">str_match</span>(clean, <span class="st">"Shala Name (.*?)([A-Z][a-z]+(?:</span><span class="sc">\\</span><span class="st">s[A-Z][a-z]+)*)(?:</span><span class="sc">\\</span><span class="st">s[A-Z]{2,3})?</span><span class="sc">\\</span><span class="st">s[A-Za-z]+$"</span>)[,<span class="dv">2</span>]</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Extract trailing location info</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  location <span class="ot">&lt;-</span> <span class="fu">str_match</span>(clean, <span class="st">"Shala Name .*? ([A-Z][a-z]+(?:</span><span class="sc">\\</span><span class="st">s[A-Z][a-z]+)*)(?:</span><span class="sc">\\</span><span class="st">s([A-Z]{2,3}))?</span><span class="sc">\\</span><span class="st">s([A-Za-z ]+)$"</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  city <span class="ot">&lt;-</span> location[,<span class="dv">2</span>]</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  state <span class="ot">&lt;-</span> location[,<span class="dv">3</span>]</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  country <span class="ot">&lt;-</span> location[,<span class="dv">4</span>]</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">data.frame</span>(</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> name,</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">authorization_level =</span> auth_level,</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">shala =</span> shala,</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">city =</span> city,</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">state =</span> state,</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">country =</span> country,</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="step-5.-parse-listings-into-a-dataframe" class="level3">
+<h3 class="anchored" data-anchor-id="step-5.-parse-listings-into-a-dataframe">Step 5. Parse Listings Into a Dataframe</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>results_df <span class="ot">&lt;-</span> raw_listings <span class="sc">%&gt;%</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lapply</span>(parse_listing) <span class="sc">%&gt;%</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>()</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(<span class="fu">head</span>(results_df))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 20%">
+<col style="width: 8%">
+<col style="width: 28%">
+<col style="width: 6%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">name</th>
+<th style="text-align: left;">authorization_level</th>
+<th style="text-align: left;">shala</th>
+<th style="text-align: left;">city</th>
+<th style="text-align: left;">state</th>
+<th style="text-align: left;">country</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Kranti) Renato Libonati</td>
+<td style="text-align: left;">Certified</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">The Light Yoga School Tokyo</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">Japan</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Aaron Earley</td>
+<td style="text-align: left;">Level 1</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Ashtanga Yoga Brisbane</td>
+<td style="text-align: left;">QLD</td>
+<td style="text-align: left;">Australia</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Adam Keen</td>
+<td style="text-align: left;">Level 2</td>
+<td style="text-align: left;">Keen on</td>
+<td style="text-align: left;">Yoga London United</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">Kingdom</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Adam Wade</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Adan Corrovina Maya</td>
+<td style="text-align: left;">Level 1</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Yoga Suecia Stockholm</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">Sweden</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Adriana Hortas</td>
+<td style="text-align: left;">Level 1</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Mysore Brussels Brussels</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">Belgium</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Now we have a dataframe with all the elements we need. However, a lot of data cleansing is still needed to make this consistent. In this case, it is probably the easiest to write a csv file with this dataframe and manually revise it. We can hard code these changes after we get a sense for what is the common issues among each data entry and if we plan to reproduce this data with updated webpage listings.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">setwd</span>(<span class="st">'outputs'</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(results_df, <span class="st">"syc_authorized_teachers.csv"</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="part2-kpjay" class="level2">
+<h2 class="anchored" data-anchor-id="part2-kpjay">Part2: KPJAY</h2>
+<p>In the section, I will repeat the process above using the Authorized Teacher list at <strong>K.PATTABHI JOIS ASHTANGA YOGA SHALA</strong></p>
+<section id="step-1.-scrape-and-organize" class="level3">
+<h3 class="anchored" data-anchor-id="step-1.-scrape-and-organize">Step 1. Scrape and Organize</h3>
+<p>This step navigates the nested structure of the page and pulls out each <strong>individual teacher node, authorization level, address, and contact info</strong>.</p>
+<p>The Authorized Teacher page at Kpjayshala.com appears to be one page with the teacher list folded by geographical region (Africa, Asia, Australia/New Zealand, Central &amp; South America, Europe, and North America). However, each region is actually it’s own page. So it was necessary to scrape each page separately.</p>
+<p><em>Parsing was executed in combination with harvesting the data for each page.</em></p>
+<section id="north-america" class="level4">
+<h4 class="anchored" data-anchor-id="north-america">North America</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load url</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>url_2 <span class="ot">&lt;-</span> <span class="st">"https://www.kpjayshala.com/north-america.html"</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>page <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url_2)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the main accordion</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>accordion <span class="ot">&lt;-</span> page <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".accordion"</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>children <span class="ot">&lt;-</span> accordion <span class="sc">%&gt;%</span> <span class="fu">html_children</span>()</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare results</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>current_region <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Helper to clean label blocks</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>extract_label_value <span class="ot">&lt;-</span> <span class="cf">function</span>(node, label_text) {</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  divs <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">"div"</span>)</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  match <span class="ot">&lt;-</span> divs[<span class="fu">str_detect</span>(<span class="fu">html_text</span>(divs), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))]</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(match) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    val <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(<span class="fu">html_text</span>(match[<span class="dv">1</span>], <span class="at">trim =</span> <span class="cn">TRUE</span>), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">str_squish</span>(val))</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">NA</span>)</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Loop through accordion structure</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (node <span class="cf">in</span> children) {</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"h3"</span>) {</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>    current_region <span class="ot">&lt;-</span> <span class="fu">html_text</span>(node, <span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"div"</span>) {</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    panels <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">".panel"</span>)</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (panel <span class="cf">in</span> panels) {</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Title parsing</span></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>      panel_title <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-title"</span>)</span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>      full_title <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>      name <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"strong"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>      authorization <span class="ot">&lt;-</span> <span class="fu">str_extract</span>(full_title, <span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>)</span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(full_title, <span class="fu">fixed</span>(name))</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(address_line, <span class="fu">regex</span>(<span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>))</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_squish</span>(address_line)</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Panel body</span></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>      body <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-body"</span>)</span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>      phone <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"phone"</span>)</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>      email <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='email'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>      web <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='web'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>      address <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"address"</span>)</span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>      results <span class="ot">&lt;-</span> <span class="fu">append</span>(results, <span class="fu">list</span>(<span class="fu">tibble</span>(</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>        <span class="at">region =</span> current_region,</span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> name,</span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>        <span class="at">authorization =</span> authorization,</span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>        <span class="at">summary_address =</span> address_line,</span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a>        <span class="at">phone =</span> phone,</span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">email =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(email) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, email),</span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">web =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(web) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, web),</span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>        <span class="at">address =</span> address</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>      )))</span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a><span class="co"># Bind everything into a final data frame</span></span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a>df1 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(results)</span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>function (x, df1, df2, ncp, log = FALSE) 
+{
+    if (missing(ncp)) 
+        .Call(C_df, x, df1, df2, log)
+    else .Call(C_dnf, x, df1, df2, ncp, log)
+}
+&lt;bytecode: 0x105eb64b8&gt;
+&lt;environment: namespace:stats&gt;</code></pre>
+</div>
+</div>
+</section>
+<section id="asia" class="level4">
+<h4 class="anchored" data-anchor-id="asia">Asia</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load url</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>url_3 <span class="ot">&lt;-</span> <span class="st">"https://www.kpjayshala.com/asia.html"</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>page2 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url_3)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the main accordion</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>accordion <span class="ot">&lt;-</span> page2 <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".accordion"</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>children <span class="ot">&lt;-</span> accordion <span class="sc">%&gt;%</span> <span class="fu">html_children</span>()</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare results</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>current_region <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Helper to clean label blocks</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>extract_label_value <span class="ot">&lt;-</span> <span class="cf">function</span>(node, label_text) {</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  divs <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">"div"</span>)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  match <span class="ot">&lt;-</span> divs[<span class="fu">str_detect</span>(<span class="fu">html_text</span>(divs), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))]</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(match) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    val <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(<span class="fu">html_text</span>(match[<span class="dv">1</span>], <span class="at">trim =</span> <span class="cn">TRUE</span>), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">str_squish</span>(val))</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">NA</span>)</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Loop through accordion structure</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (node <span class="cf">in</span> children) {</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"h3"</span>) {</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>    current_region <span class="ot">&lt;-</span> <span class="fu">html_text</span>(node, <span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"div"</span>) {</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>    panels <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">".panel"</span>)</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (panel <span class="cf">in</span> panels) {</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Title parsing</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>      panel_title <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-title"</span>)</span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>      full_title <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>      name <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"strong"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>      authorization <span class="ot">&lt;-</span> <span class="fu">str_extract</span>(full_title, <span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>)</span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(full_title, <span class="fu">fixed</span>(name))</span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(address_line, <span class="fu">regex</span>(<span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>))</span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_squish</span>(address_line)</span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Panel body</span></span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>      body <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-body"</span>)</span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>      phone <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"phone"</span>)</span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>      email <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='email'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>      web <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='web'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>      address <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"address"</span>)</span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>      results <span class="ot">&lt;-</span> <span class="fu">append</span>(results, <span class="fu">list</span>(<span class="fu">tibble</span>(</span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>        <span class="at">region =</span> current_region,</span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> name,</span>
+<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>        <span class="at">authorization =</span> authorization,</span>
+<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>        <span class="at">summary_address =</span> address_line,</span>
+<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">phone =</span> phone,</span>
+<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">email =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(email) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, email),</span>
+<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a>        <span class="at">web =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(web) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, web),</span>
+<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a>        <span class="at">address =</span> address</span>
+<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a>      )))</span>
+<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-64"><a href="#cb9-64" aria-hidden="true" tabindex="-1"></a><span class="co"># Bind everything into a final data frame</span></span>
+<span id="cb9-65"><a href="#cb9-65" aria-hidden="true" tabindex="-1"></a>df2 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(results)</span>
+<span id="cb9-66"><a href="#cb9-66" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 110 × 8
+   region          name  authorization summary_address phone email web   address
+   &lt;chr&gt;           &lt;chr&gt; &lt;chr&gt;         &lt;chr&gt;           &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  
+ 1 CHINA - BEIJING Jaja… authorized l… ""              &lt;NA&gt;  jaja… www.… WEB: w…
+ 2 CHINA - BEIJING Li p… authorized l… "(2018)"        ： 15… &lt;NA&gt;  &lt;NA&gt;  : 1106…
+ 3 CHINA - BEIJING Guan… authorized l… "(2018)"        &lt;NA&gt;  &lt;NA&gt;  &lt;NA&gt;  &lt;NA&gt;   
+ 4 CHINA - BEIJING He h… authorized l… "(2018)"        numb… &lt;NA&gt;  &lt;NA&gt;  : Room…
+ 5 CHINA - BEIJING Marg… authorized l… ""              &lt;NA&gt;  &lt;NA&gt;  &lt;NA&gt;  : Shan…
+ 6 CHINA - BEIJING Lai … authorized l… "(2022)"        numb… &lt;NA&gt;  &lt;NA&gt;  : Hung…
+ 7 CHINA - BEIJING Aman… authorized l… "The Oriental … : +8… aman… http… : The …
+ 8 CHINA - BEIJING Clay… authorized l… ""              &lt;NA&gt;  shiv… www.… : 16/f…
+ 9 CHINA - BEIJING Conn… authorized l… "Pure Yoga, KO… : +8… conn… www.… : 9/f,…
+10 CHINA - BEIJING Deva… authorized l… ""              : +8… deva… &lt;NA&gt;  : Hong…
+# ℹ 100 more rows</code></pre>
+</div>
+</div>
+</section>
+<section id="central-south-america" class="level4">
+<h4 class="anchored" data-anchor-id="central-south-america">Central &amp; South America</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load url</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>url_4 <span class="ot">&lt;-</span> <span class="st">"https://www.kpjayshala.com/central-and-south-america.html"</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>page4 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url_4)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the main accordion</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>accordion <span class="ot">&lt;-</span> page4 <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".accordion"</span>)</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>children <span class="ot">&lt;-</span> accordion <span class="sc">%&gt;%</span> <span class="fu">html_children</span>()</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare results</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>current_region <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Helper to clean label blocks</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>extract_label_value <span class="ot">&lt;-</span> <span class="cf">function</span>(node, label_text) {</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>  divs <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">"div"</span>)</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>  match <span class="ot">&lt;-</span> divs[<span class="fu">str_detect</span>(<span class="fu">html_text</span>(divs), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))]</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(match) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    val <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(<span class="fu">html_text</span>(match[<span class="dv">1</span>], <span class="at">trim =</span> <span class="cn">TRUE</span>), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">str_squish</span>(val))</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">NA</span>)</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Loop through accordion structure</span></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (node <span class="cf">in</span> children) {</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"h3"</span>) {</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>    current_region <span class="ot">&lt;-</span> <span class="fu">html_text</span>(node, <span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"div"</span>) {</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>    panels <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">".panel"</span>)</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (panel <span class="cf">in</span> panels) {</span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Title parsing</span></span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>      panel_title <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-title"</span>)</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>      full_title <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>      name <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"strong"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>      authorization <span class="ot">&lt;-</span> <span class="fu">str_extract</span>(full_title, <span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>)</span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(full_title, <span class="fu">fixed</span>(name))</span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(address_line, <span class="fu">regex</span>(<span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>))</span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_squish</span>(address_line)</span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Panel body</span></span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>      body <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-body"</span>)</span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a>      phone <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"phone"</span>)</span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>      email <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='email'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>      web <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='web'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>      address <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"address"</span>)</span>
+<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a>      results <span class="ot">&lt;-</span> <span class="fu">append</span>(results, <span class="fu">list</span>(<span class="fu">tibble</span>(</span>
+<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a>        <span class="at">region =</span> current_region,</span>
+<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> name,</span>
+<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a>        <span class="at">authorization =</span> authorization,</span>
+<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a>        <span class="at">summary_address =</span> address_line,</span>
+<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">phone =</span> phone,</span>
+<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">email =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(email) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, email),</span>
+<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a>        <span class="at">web =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(web) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, web),</span>
+<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a>        <span class="at">address =</span> address</span>
+<span id="cb11-59"><a href="#cb11-59" aria-hidden="true" tabindex="-1"></a>      )))</span>
+<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a><span class="co"># Bind everything into a final data frame</span></span>
+<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a>df3 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(results)</span>
+<span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 34 × 8
+   region name           authorization summary_address phone email web   address
+   &lt;chr&gt;  &lt;chr&gt;          &lt;chr&gt;         &lt;chr&gt;           &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  
+ 1 ""     Carlos Gullo   &lt;NA&gt;          "Amor e Iguald… : +5… &lt;NA&gt;  &lt;NA&gt;  : Cach…
+ 2 ""     Clarisa García authorized l… ", Galpón de A… : +5… &lt;NA&gt;  &lt;NA&gt;  : Here…
+ 3 ""     Daiana Amedeo  authorized l… ", Buenos Aire… : +5… &lt;NA&gt;  &lt;NA&gt;  &lt;NA&gt;   
+ 4 ""     Maia Glikstein authorized l… ", Niyāma Asht… : +5… &lt;NA&gt;  &lt;NA&gt;  &lt;NA&gt;   
+ 5 ""     Maria Di Masso authorized l… "Ashtanga Yoga… &lt;NA&gt;  asth… www.… : Salt…
+ 6 ""     Pablo Pirillo  authorized l… "Ashtanga Yoga… : +5… asht… www.… : Pale…
+ 7 ""     Patricia Abal… authorized l… "(2018)"        : +5… &lt;NA&gt;  &lt;NA&gt;  : Rami…
+ 8 ""     Abhaya Kaufman authorized l… ""              : +1… chez… &lt;NA&gt;  : Braz…
+ 9 ""     Claudia Rathm… authorized l… "FLORIANÓPOLIS" &lt;NA&gt;  clau… &lt;NA&gt;  : Flor…
+10 ""     Daniela Meira  &lt;NA&gt;          "Authorized le… &lt;NA&gt;  &lt;NA&gt;  www.… : A av…
+# ℹ 24 more rows</code></pre>
+</div>
+</div>
+</section>
+<section id="europe" class="level4">
+<h4 class="anchored" data-anchor-id="europe">Europe</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load url</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>url_5 <span class="ot">&lt;-</span> <span class="st">"https://www.kpjayshala.com/europe.html"</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>page5 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url_5)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the main accordion</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>accordion <span class="ot">&lt;-</span> page5 <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".accordion"</span>)</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>children <span class="ot">&lt;-</span> accordion <span class="sc">%&gt;%</span> <span class="fu">html_children</span>()</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare results</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>current_region <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Helper to clean label blocks</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>extract_label_value <span class="ot">&lt;-</span> <span class="cf">function</span>(node, label_text) {</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>  divs <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">"div"</span>)</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  match <span class="ot">&lt;-</span> divs[<span class="fu">str_detect</span>(<span class="fu">html_text</span>(divs), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))]</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(match) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    val <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(<span class="fu">html_text</span>(match[<span class="dv">1</span>], <span class="at">trim =</span> <span class="cn">TRUE</span>), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">str_squish</span>(val))</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">NA</span>)</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Loop through accordion structure</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (node <span class="cf">in</span> children) {</span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"h3"</span>) {</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>    current_region <span class="ot">&lt;-</span> <span class="fu">html_text</span>(node, <span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"div"</span>) {</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>    panels <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">".panel"</span>)</span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (panel <span class="cf">in</span> panels) {</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Title parsing</span></span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>      panel_title <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-title"</span>)</span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>      full_title <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>      name <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"strong"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>      authorization <span class="ot">&lt;-</span> <span class="fu">str_extract</span>(full_title, <span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>)</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(full_title, <span class="fu">fixed</span>(name))</span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(address_line, <span class="fu">regex</span>(<span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>))</span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_squish</span>(address_line)</span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Panel body</span></span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>      body <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-body"</span>)</span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>      phone <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"phone"</span>)</span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>      email <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='email'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a>      web <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='web'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>      address <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"address"</span>)</span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>      results <span class="ot">&lt;-</span> <span class="fu">append</span>(results, <span class="fu">list</span>(<span class="fu">tibble</span>(</span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>        <span class="at">region =</span> current_region,</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> name,</span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>        <span class="at">authorization =</span> authorization,</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>        <span class="at">summary_address =</span> address_line,</span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">phone =</span> phone,</span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">email =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(email) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, email),</span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>        <span class="at">web =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(web) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, web),</span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a>        <span class="at">address =</span> address</span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>      )))</span>
+<span id="cb13-60"><a href="#cb13-60" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb13-61"><a href="#cb13-61" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb13-62"><a href="#cb13-62" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb13-63"><a href="#cb13-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-64"><a href="#cb13-64" aria-hidden="true" tabindex="-1"></a><span class="co"># Bind everything into a final data frame</span></span>
+<span id="cb13-65"><a href="#cb13-65" aria-hidden="true" tabindex="-1"></a>df4 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(results)</span>
+<span id="cb13-66"><a href="#cb13-66" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 249 × 8
+   region  name          authorization summary_address phone email web   address
+   &lt;chr&gt;   &lt;chr&gt;         &lt;chr&gt;         &lt;chr&gt;           &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  
+ 1 AUSTRIA Clemens Kitt… authorized l… Yoga Plus, VIE… : 00… clem… www.… PHONE …
+ 2 AUSTRIA Grace Tai Yi… authorized l… VIENNA          &lt;NA&gt;  grac… &lt;NA&gt;  : Vien…
+ 3 AUSTRIA Horst Rinner… authorized l… Pure Yoga - As… : +4… info… www.… : Einw…
+ 4 AUSTRIA Maria Türke   authorized l… Ganesha Yogaze… &lt;NA&gt;  &lt;NA&gt;  &lt;NA&gt;  &lt;NA&gt;   
+ 5 AUSTRIA Mauricio Vic… authorized l… VIENNA          &lt;NA&gt;  maur… www.… : Vien…
+ 6 AUSTRIA Anne Pinette… authorized l… Ashtanga Yoga … : +3… anne… www.… : Rue …
+ 7 AUSTRIA Damien Meado… authorized l… Ashtanga Yoga … &lt;NA&gt;  &lt;NA&gt;  www.… : Rue …
+ 8 AUSTRIA Lot Keymeulen authorized l… Badhitree Yoga… : +3… lot@… www.… : Gont…
+ 9 AUSTRIA Lynne Pinette authorized l… BRUSSELS        : +3… lynn… &lt;NA&gt;  : Aven…
+10 AUSTRIA Sittibancha … authorized l… Badhitree Yoga… : +3… sitt… www.… : Gont…
+# ℹ 239 more rows</code></pre>
+</div>
+</div>
+</section>
+<section id="australia-new-zealand" class="level4">
+<h4 class="anchored" data-anchor-id="australia-new-zealand">Australia &amp; New Zealand</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load url</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>url_6 <span class="ot">&lt;-</span> <span class="st">"https://www.kpjayshala.com/australia-and-new-zealand.html"</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>page6 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url_6)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the main accordion</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>accordion <span class="ot">&lt;-</span> page6 <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".accordion"</span>)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>children <span class="ot">&lt;-</span> accordion <span class="sc">%&gt;%</span> <span class="fu">html_children</span>()</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare results</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>current_region <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Helper to clean label blocks</span></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>extract_label_value <span class="ot">&lt;-</span> <span class="cf">function</span>(node, label_text) {</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>  divs <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">"div"</span>)</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>  match <span class="ot">&lt;-</span> divs[<span class="fu">str_detect</span>(<span class="fu">html_text</span>(divs), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))]</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(match) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>    val <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(<span class="fu">html_text</span>(match[<span class="dv">1</span>], <span class="at">trim =</span> <span class="cn">TRUE</span>), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">str_squish</span>(val))</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">NA</span>)</span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Loop through accordion structure</span></span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (node <span class="cf">in</span> children) {</span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"h3"</span>) {</span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a>    current_region <span class="ot">&lt;-</span> <span class="fu">html_text</span>(node, <span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"div"</span>) {</span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>    panels <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">".panel"</span>)</span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (panel <span class="cf">in</span> panels) {</span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Title parsing</span></span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>      panel_title <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-title"</span>)</span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>      full_title <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>      name <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"strong"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>      authorization <span class="ot">&lt;-</span> <span class="fu">str_extract</span>(full_title, <span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>)</span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(full_title, <span class="fu">fixed</span>(name))</span>
+<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(address_line, <span class="fu">regex</span>(<span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>))</span>
+<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_squish</span>(address_line)</span>
+<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Panel body</span></span>
+<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a>      body <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-body"</span>)</span>
+<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-45"><a href="#cb15-45" aria-hidden="true" tabindex="-1"></a>      phone <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"phone"</span>)</span>
+<span id="cb15-46"><a href="#cb15-46" aria-hidden="true" tabindex="-1"></a>      email <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='email'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb15-47"><a href="#cb15-47" aria-hidden="true" tabindex="-1"></a>      web <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='web'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb15-48"><a href="#cb15-48" aria-hidden="true" tabindex="-1"></a>      address <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"address"</span>)</span>
+<span id="cb15-49"><a href="#cb15-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-50"><a href="#cb15-50" aria-hidden="true" tabindex="-1"></a>      results <span class="ot">&lt;-</span> <span class="fu">append</span>(results, <span class="fu">list</span>(<span class="fu">tibble</span>(</span>
+<span id="cb15-51"><a href="#cb15-51" aria-hidden="true" tabindex="-1"></a>        <span class="at">region =</span> current_region,</span>
+<span id="cb15-52"><a href="#cb15-52" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> name,</span>
+<span id="cb15-53"><a href="#cb15-53" aria-hidden="true" tabindex="-1"></a>        <span class="at">authorization =</span> authorization,</span>
+<span id="cb15-54"><a href="#cb15-54" aria-hidden="true" tabindex="-1"></a>        <span class="at">summary_address =</span> address_line,</span>
+<span id="cb15-55"><a href="#cb15-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">phone =</span> phone,</span>
+<span id="cb15-56"><a href="#cb15-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">email =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(email) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, email),</span>
+<span id="cb15-57"><a href="#cb15-57" aria-hidden="true" tabindex="-1"></a>        <span class="at">web =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(web) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, web),</span>
+<span id="cb15-58"><a href="#cb15-58" aria-hidden="true" tabindex="-1"></a>        <span class="at">address =</span> address</span>
+<span id="cb15-59"><a href="#cb15-59" aria-hidden="true" tabindex="-1"></a>      )))</span>
+<span id="cb15-60"><a href="#cb15-60" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb15-61"><a href="#cb15-61" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb15-62"><a href="#cb15-62" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-63"><a href="#cb15-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-64"><a href="#cb15-64" aria-hidden="true" tabindex="-1"></a><span class="co"># Bind everything into a final data frame</span></span>
+<span id="cb15-65"><a href="#cb15-65" aria-hidden="true" tabindex="-1"></a>df5 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(results)</span>
+<span id="cb15-66"><a href="#cb15-66" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df5)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 40 × 8
+   region    name        authorization summary_address phone email web   address
+   &lt;chr&gt;     &lt;chr&gt;       &lt;chr&gt;         &lt;chr&gt;           &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  
+ 1 AUSTRALIA Santina Gi… authorized l… Insan Yoga, QL… : 04… sgia… www.… PHONE:…
+ 2 AUSTRALIA Angelina (… authorized l… SYDNEY          &lt;NA&gt;  yogi… &lt;NA&gt;  : Sydn…
+ 3 AUSTRALIA Ashley von… authorized l… SYDNEY          &lt;NA&gt;  ashl… &lt;NA&gt;  : Sydn…
+ 4 AUSTRALIA Christian … authorized l… Centre Of Bala… : + … info… www.… : 11, …
+ 5 AUSTRALIA Dan Fantho… authorized l… Ashtanga Yoga … : +6… info… www.… : Leve…
+ 6 AUSTRALIA Dena Kings… &lt;NA&gt;          Centre of Bala… &lt;NA&gt;  cent… www.… : P.O.…
+ 7 AUSTRALIA Eileen Hall &lt;NA&gt;          Ashtanga YogaM… &lt;NA&gt;  &lt;NA&gt;  www.… : Sydn…
+ 8 AUSTRALIA Fiona Pull… authorized l… Ashtanga Yoga … : (+… fion… www.… : 405 …
+ 9 AUSTRALIA Frances Li… authorized l… BONDI BEACH     &lt;NA&gt;  fran… asht… : 129 …
+10 AUSTRALIA Gabriel St… authorized l… Yoga Village, … : +6… gabr… www.… : 20 D…
+# ℹ 30 more rows</code></pre>
+</div>
+</div>
+</section>
+<section id="africa" class="level4">
+<h4 class="anchored" data-anchor-id="africa">Africa</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># load url</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>url_7 <span class="ot">&lt;-</span> <span class="st">"https://www.kpjayshala.com/authorised-teachers.html"</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>page7 <span class="ot">&lt;-</span> <span class="fu">read_html</span>(url_7)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the main accordion</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>accordion <span class="ot">&lt;-</span> page7 <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".accordion"</span>)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>children <span class="ot">&lt;-</span> accordion <span class="sc">%&gt;%</span> <span class="fu">html_children</span>()</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare results</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>current_region <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Helper to clean label blocks</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>extract_label_value <span class="ot">&lt;-</span> <span class="cf">function</span>(node, label_text) {</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  divs <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">"div"</span>)</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>  match <span class="ot">&lt;-</span> divs[<span class="fu">str_detect</span>(<span class="fu">html_text</span>(divs), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))]</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(match) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>    val <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(<span class="fu">html_text</span>(match[<span class="dv">1</span>], <span class="at">trim =</span> <span class="cn">TRUE</span>), <span class="fu">regex</span>(label_text, <span class="at">ignore_case =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">str_squish</span>(val))</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="cn">NA</span>)</span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Loop through accordion structure</span></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (node <span class="cf">in</span> children) {</span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"h3"</span>) {</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>    current_region <span class="ot">&lt;-</span> <span class="fu">html_text</span>(node, <span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (<span class="fu">html_name</span>(node) <span class="sc">==</span> <span class="st">"div"</span>) {</span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>    panels <span class="ot">&lt;-</span> node <span class="sc">%&gt;%</span> <span class="fu">html_nodes</span>(<span class="st">".panel"</span>)</span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (panel <span class="cf">in</span> panels) {</span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Title parsing</span></span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>      panel_title <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-title"</span>)</span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a>      full_title <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a>      name <span class="ot">&lt;-</span> panel_title <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"strong"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a>      authorization <span class="ot">&lt;-</span> <span class="fu">str_extract</span>(full_title, <span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>)</span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(full_title, <span class="fu">fixed</span>(name))</span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_remove</span>(address_line, <span class="fu">regex</span>(<span class="st">"authorized level </span><span class="sc">\\</span><span class="st">d+"</span>))</span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a>      address_line <span class="ot">&lt;-</span> <span class="fu">str_squish</span>(address_line)</span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Panel body</span></span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a>      body <span class="ot">&lt;-</span> panel <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">".panel-body"</span>)</span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a>      phone <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"phone"</span>)</span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a>      email <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='email'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a>      web <span class="ot">&lt;-</span> body <span class="sc">%&gt;%</span> <span class="fu">html_node</span>(<span class="st">"label[for='web'] + a"</span>) <span class="sc">%&gt;%</span> <span class="fu">html_text</span>(<span class="at">trim =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a>      address <span class="ot">&lt;-</span> <span class="fu">extract_label_value</span>(body, <span class="st">"address"</span>)</span>
+<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a>      results <span class="ot">&lt;-</span> <span class="fu">append</span>(results, <span class="fu">list</span>(<span class="fu">tibble</span>(</span>
+<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a>        <span class="at">region =</span> current_region,</span>
+<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a>        <span class="at">name =</span> name,</span>
+<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a>        <span class="at">authorization =</span> authorization,</span>
+<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a>        <span class="at">summary_address =</span> address_line,</span>
+<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">phone =</span> phone,</span>
+<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a>        <span class="at">email =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(email) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, email),</span>
+<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a>        <span class="at">web =</span> <span class="fu">ifelse</span>(<span class="fu">length</span>(web) <span class="sc">==</span> <span class="dv">0</span>, <span class="cn">NA</span>, web),</span>
+<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a>        <span class="at">address =</span> address</span>
+<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a>      )))</span>
+<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-63"><a href="#cb17-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-64"><a href="#cb17-64" aria-hidden="true" tabindex="-1"></a><span class="co"># Bind everything into a final data frame</span></span>
+<span id="cb17-65"><a href="#cb17-65" aria-hidden="true" tabindex="-1"></a>df6 <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(results)</span>
+<span id="cb17-66"><a href="#cb17-66" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(df6)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 2 × 8
+  region name            authorization summary_address phone email web   address
+  &lt;chr&gt;  &lt;chr&gt;           &lt;chr&gt;         &lt;chr&gt;           &lt;chr&gt; &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;  
+1 EGYPT  Iman Elsherbiny authorized l… Ashtanga Yoga … : 00… iman… &lt;NA&gt;  PHONE:…
+2 EGYPT  Ewa Jedrzejczyk authorized l… KITWE           : +2… ewaj… &lt;NA&gt;  : P.O.…</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="step-2.-compile-kpjay-regional-pages" class="level3">
+<h3 class="anchored" data-anchor-id="step-2.-compile-kpjay-regional-pages">Step 2. Compile Kpjay Regional Pages</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>kpjay_results <span class="ot">&lt;-</span> df1 <span class="sc">%&gt;%</span> </span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bind_rows</span>(df2, df3, df4, df5, df5)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(<span class="fu">head</span>(kpjay_results))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<colgroup>
+<col style="width: 2%">
+<col style="width: 9%">
+<col style="width: 7%">
+<col style="width: 16%">
+<col style="width: 8%">
+<col style="width: 13%">
+<col style="width: 11%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">region</th>
+<th style="text-align: left;">name</th>
+<th style="text-align: left;">authorization</th>
+<th style="text-align: left;">summary_address</th>
+<th style="text-align: left;">phone</th>
+<th style="text-align: left;">email</th>
+<th style="text-align: left;">web</th>
+<th style="text-align: left;">address</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">CANADA</td>
+<td style="text-align: left;">Andrea Gracia</td>
+<td style="text-align: left;">authorized level 1</td>
+<td style="text-align: left;">Halifax, Nova Scotia, Canada</td>
+<td style="text-align: left;">: +1 9022298384</td>
+<td style="text-align: left;">www.graciayoga.ca</td>
+<td style="text-align: left;">+1 9022298384</td>
+<td style="text-align: left;">: Halifax, Nova Scotia - Canada</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CANADA</td>
+<td style="text-align: left;">Blake Victor Seidenshaw</td>
+<td style="text-align: left;">authorized level 1</td>
+<td style="text-align: left;">Ashtanga Yoga New York, BRITISH COLUMBIA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">interdisciplined@gmail.com</td>
+<td style="text-align: left;">www.ayny.org</td>
+<td style="text-align: left;">: Whistler, British Columbia, Canada</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">CANADA</td>
+<td style="text-align: left;">Sam Shem</td>
+<td style="text-align: left;">authorized level 1</td>
+<td style="text-align: left;">(2018)</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">: Van Couver, Canada - Quebec</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CANADA</td>
+<td style="text-align: left;">Catherine Kovacs</td>
+<td style="text-align: left;">authorized level 2</td>
+<td style="text-align: left;">Ashtanga Yoga Edmonton, EDMONTON</td>
+<td style="text-align: left;">: +1 (780) 908 7200</td>
+<td style="text-align: left;">breathe@ashtangayogaedmonton.com</td>
+<td style="text-align: left;">www.ashtangayogaedmonton.com</td>
+<td style="text-align: left;">: 11623-105 Avenue, Edmonton, Canada - Alberta</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">CANADA</td>
+<td style="text-align: left;">Evan Gavigan</td>
+<td style="text-align: left;">authorized level 2</td>
+<td style="text-align: left;">Ashtanga Yoga Edmonton, EDMONTON</td>
+<td style="text-align: left;">: +1 780 908 7200</td>
+<td style="text-align: left;">breathe@ashtangayogaedmonton.com</td>
+<td style="text-align: left;">www.ashtangayogaedmonton.com</td>
+<td style="text-align: left;">: M-Trac Building, 11623-105 Ave, Edmonton T5H 0L9, Canada - Alberta</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">CANADA</td>
+<td style="text-align: left;">Harmony Slater</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">CALGARY</td>
+<td style="text-align: left;">NA</td>
+<td style="text-align: left;">harmonyashtanga@gmail.com</td>
+<td style="text-align: left;">www.harmonyashtanga.com</td>
+<td style="text-align: left;">: Calgary, Canada - Alberta</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The Kpjay teacher list was a lot more difficult to harvest than the SYC list. However the parsing function was much more successful at extracting each element, so we will have much less manual data cleansing. We can make the necessary changes in R when combining the two data sets in a separate tutorial.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Write File</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">setwd</span>(<span class="st">'outputs'</span>)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(kpjay_results, <span class="st">"kpjay_authorized_teachers.csv"</span>, <span class="at">row.names =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

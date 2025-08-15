@@ -1,0 +1,418 @@
+---
+title: "Cleanse Teacher Data"
+format: html
+editor: visual
+---
+
+## Summary
+
+In a previous project, I harvested the data from two major Ashtanga Yoga Shalas in Mysore, India. These are the main authorities in terms of learning traditional Ashtanga Yoga and authorizing teachers in this method.
+
+Most of the record keeping for authorized teachers appears to be manually recorded and documented in a list on each website respectively. It is my understanding that a comprehensive list of teachers worldwide does not exist.
+
+This document will primarily focus on combining the two lists together and formatting, preparing the data to be used for an interactive dashboard that will display the teacher list geospatially on a global map.
+
+## Step 1. Load the data
+
+Both the list of teachers from [Sharath Yoga Center](https://sharathyogacentre.com/authorised-teachers-directory/?wpbdp_view=all_listings) and [Kpjay Shala](https://www.kpjayshala.com/authorised-teachers.html) were harvested using R and rvest:: and parsed to form two dataframes as follows:
+
+[**SYC Authorized Teacher List**]{.underline}
+
+```{r, include=FALSE}
+
+# setup
+library(tidyverse)
+library(kableExtra)
+library(fuzzyjoin)
+
+```
+
+```{r}
+setwd('outputs')
+syc_teachers <- read.csv("syc_authorized_teachers_cleansed.csv", stringsAsFactors = FALSE)
+
+kable(head(syc_teachers))
+```
+
+[**Kpjay Authorized Teacher List**]{.underline}
+
+```{r}
+setwd('outputs')
+kpjay_teachers <- read.csv("kpjay_authorized_teachers.csv", stringsAsFactors = FALSE)
+
+kable(head(kpjay_teachers))
+```
+
+We can see that the data in both data sets is similar but some further data transformation needs to take place---which is standard procedure for almost all data visualization projects. We will outline this data transformation in the next two steps.
+
+## Step 2. Prepare SYC Teachers
+
+While it would be great to add the Shala name to the final dashboard, many entries are incomplete or parsed inconsistently. So we will focus on the name, authorization level, city, state, and country for this project
+
+```{r}
+# Select relevant columns
+syc_teachers <- syc_teachers %>% 
+  select(name, syc_authorization_level, city, state, country)
+
+# Drop duplicate entries
+syc_teachers <- syc_teachers %>%
+  distinct(name, .keep_all = TRUE)
+  
+
+# Trim white spaces
+syc_teachers <- syc_teachers %>% 
+  mutate(across(where(is.character), str_trim))
+
+# Replace blank "state" entries with "NA"
+syc_teachers <- syc_teachers %>%
+  mutate(state = if_else(str_trim(state) == "", NA_character_, state))
+
+# Replace blank "city" entries with "NA"
+syc_teachers <- syc_teachers %>%
+  mutate(city = if_else(str_trim(city) == "", NA_character_, city))
+
+# Format authorization_level to factor with levels
+syc_teachers <- syc_teachers %>%
+  mutate(syc_authorization_level = factor(syc_authorization_level, levels = c("Level 1", "Level 2", "Certified")))
+
+# Replace New York City with New York
+syc_teachers <- syc_teachers %>%
+  mutate(city = str_replace_all(city, "New York City", "New York"))
+```
+
+## Step 3. Fuzzy Join City Name to World Cities List
+
+The city name in the teacher list is a little more complicated to format correctly. There is not a lot of consistency in the way the data was harvested from the webpage. So writing a function to parse effectively will be difficult. Instead, we can use a a fuzzy match and join the city name from a comprehensive list of world cities downloaded from [simplemaps](https://simplemaps.com/data/world-cities).
+
+```{r, warning=FALSE}
+# Load Worldcities
+setwd('inputs')
+worldcities <- read.csv("worldcities.csv", stringsAsFactors = FALSE)
+```
+
+```{r, warning=FALSE}
+
+# Step 1: Prepare city name reference from worldcities
+known_cities <- worldcities %>%
+  pull(city) %>%
+  str_to_title() %>%
+  unique() %>%
+  sort(nchar(.), decreasing = TRUE)  # longest matches first
+
+# Step 2: Create regex pattern
+city_pattern <- str_c("\\b(", str_c(known_cities, collapse = "|"), ")\\b")
+
+# Step 3: Function to extract known city name
+extract_city <- function(raw_text) {
+  match <- str_extract(str_to_title(raw_text), city_pattern)
+  ifelse(is.na(match), raw_text, match)
+}
+
+# Step 4: Apply extraction to your dataframe
+syc_teachers_final <- syc_teachers %>%
+  mutate(city = map_chr(city, extract_city))
+```
+
+## Step 4. Update Records for Consistency
+
+Some of the formatting and parsing was done manually since it was difficult to create a function that would work for all the inconsistencies in the city data. Further, a few changes to Countries, States, etc. were made for various reasons.
+
+```{r}
+# Change Bay to Hawke's Bay
+syc_teachers_final$city[syc_teachers_final$city == "Bay"] <- "Hawke's Bay"
+
+# Change United States of America to United States
+syc_teachers_final$country[syc_teachers_final$country == "United States of America"] <- "United States"
+
+# Change Korea, South to Republic of Korea
+worldcities$country[worldcities$country == "Korea, South"] <- "South Korea"
+syc_teachers_final$country[syc_teachers_final$country == "Republic of Korea"] <- "South Korea"
+
+#remove blank name
+syc_teachers_final <- syc_teachers_final %>% 
+  filter(name != "")
+
+#Update Svedlevskaya, obl, ural (State)
+syc_teachers_final$state[syc_teachers_final$state == "Svedlevskaya, obl, ural"] <- "Sverdlovsk Oblast"
+
+# Change St Paul to St. Paul
+syc_teachers_final$city[syc_teachers_final$city == "St Paul"] <- "St. Paul"
+```
+
+## Step 5. Add SYC Authorization Yes/No Column
+
+In preparation for when we join the SYC list with the Kpjay list, let's add a column that can be used to distinguish the two authorizations. This will help us understand which teachers are authorized to teach by both institutions (I am expecting a fair amount since SYC sprang from Kpjay in 2019).
+
+```{r}
+
+# Add syc_authorized column and reorder dataframe
+syc_teachers_final <- syc_teachers_final %>% 
+  mutate(syc_authorized = "yes") %>% 
+  select(name, syc_authorized, everything())
+  
+```
+
+## Step 6. Prepare Kpjay Shala Data
+
+Now we need to follow a similar set of steps to cleanse and transform the teacher data from the Kpjay Shala web page.
+
+```{r}
+# replace address NA with summary address
+kpjay_teachers <- kpjay_teachers %>%
+  mutate(address = if_else(is.na(address), summary_address, address))
+
+# replace blanks with NA
+kpjay_teachers <- kpjay_teachers %>%
+  mutate(address = na_if(address, ""))
+```
+
+```{r}
+# parse addresses for city, state and country  
+kpjay_teachers_final <- kpjay_teachers %>%
+  mutate(
+    # Clean and standardize address
+    address_clean = str_trim(str_remove(address, "^:")),
+    
+    # Extract country as last item after dash
+    country = str_extract(address_clean, "(?<=-\\s)[A-Za-z ]+$"),
+    
+    # Extract state/province as the second-to-last item
+    state = str_extract(address_clean, "(?<=,\\s)[^,\\-]+(?=\\s-\\s)"),
+    
+    # Extract city: the last wordy bit before the state/country segment
+    city = case_when(
+      str_detect(address_clean, ",\\s*[^,]+,\\s*(USA|Canada|Jamaica)") ~
+        str_extract(address_clean, "(?<=,\\s)[^,]+(?=,\\s*(USA|Canada|Jamaica))"),
+      str_detect(address_clean, ",\\s*(USA|Canada|Jamaica)") ~
+        str_extract(address_clean, "(?<=:\\s)[^,]+(?=,\\s*(USA|Canada|Jamaica))"),
+      str_detect(address_clean, "^[A-Z\\s]+$") ~ address_clean,  # handles just "VICTORIA", "TORONTO"
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+```{r}
+# heuristic approach to parsing address
+kpjay_teachers_cleaned <- kpjay_teachers %>%
+  mutate(
+    address_clean = str_remove(address, "^:\\s*"),  # remove leading colon/space
+    address_clean = str_squish(address_clean),
+    
+    # Step 1: Separate state from country if it follows a " - " format
+    country_state = str_split_fixed(address_clean, " - ", 2),
+    raw_location = country_state[, 1],
+    state = country_state[, 2],
+
+    # Step 2: Extract country from last word in raw_location
+    country = str_extract(raw_location, "(?i)(Canada|USA|United States|Jamaica|Mexico|Brazil|Colombia|Argentina|Chile|Peru|Ecuador|Uruguay|Paraguay)$"),
+
+    # Step 3: Remove country from location line, treat what's left as city
+    city = raw_location %>%
+      str_remove(paste0(country, "$")) %>%
+      str_remove(",$") %>%
+      str_squish(),
+
+    # Final cleanup
+    state = na_if(state, ""),  # make blank strings into NA
+    country = na_if(country, ""),
+    city = na_if(city, "")
+  ) %>%
+  select(-country_state, -raw_location, -address_clean) %>% 
+  mutate(
+  city = if_else(is.na(city) & str_detect(address, "^[A-Z\\s]{4,}$"), str_to_title(address), city)
+)
+
+```
+
+```{r}
+# Further parse city
+kpjay_teachers_cleaned <- kpjay_teachers_cleaned %>%
+  mutate(
+    city = address %>%
+      str_remove("^:\\s*") %>%  # Remove leading colon and whitespace
+      str_replace_all("\\d{4,}", "") %>%  # Remove zip/postal codes
+      str_replace_all("(?i)(usa|canada|jamaica)\\s*-?\\s*[A-Za-z\\s]*", "") %>%  # Remove country-state
+      str_replace_all("(?i)(po box|suite|studio|building|ste|ave|st|road|drive|blvd|street)", "") %>%  # Remove address noise
+      str_squish() %>%  # Collapse extra spaces
+      str_split(",") %>%
+      map_chr(function(parts) {
+        parts <- str_squish(parts)
+        parts <- parts[parts != ""]  # Remove empty parts
+        parts <- parts[!str_detect(parts, "^\\d+$")]  # Remove purely numeric parts
+        if (length(parts) == 0) {
+          return(NA_character_)
+        } else {
+          return(str_to_title(tail(parts, 1)))
+        }
+      })
+  )
+
+# Replace country NA with city column contents
+kpjay_teachers_cleaned <- kpjay_teachers_cleaned %>%
+  mutate(
+    country = if_else(is.na(country) & !is.na(city), city, country)
+  )
+
+# Parse Summary Address for second attempt at extracting city name
+kpjay_teachers_cleaned <- kpjay_teachers_cleaned %>%
+  mutate(
+    summary_address = str_squish(summary_address),  # Clean whitespace
+    city_2 = summary_address %>%
+      str_extract("[^,]+$") %>%
+      str_to_title() %>%
+      str_trim(),
+    
+    shala = if_else(
+      str_detect(summary_address, ","),
+      summary_address %>%
+        str_extract("^(.*),[^,]+$") %>%
+        str_trim(),
+      NA_character_
+    )
+  )
+```
+
+```{r, include=FALSE}
+#Check for NAs
+kpjay_teachers_cleaned %>%
+  summarise(across(everything(), ~ sum(is.na(.)), .names = "na_count_{.col}")) %>%
+  pivot_longer(everything(),
+               names_to = "column",
+               values_to = "na_count") %>%
+  arrange(desc(na_count))
+```
+
+## Step 7. Update Records for Consistency
+
+```{r}
+# Change authorization level to match SYC_teachers
+kpjay_teachers_cleaned <- kpjay_teachers_cleaned %>%
+  mutate(
+    authorization = case_when(
+      authorization == "authorized level 1" ~ "Level 1",
+      authorization == "authorized level 2" ~ "Level 2",
+      is.na(authorization) ~ "Certified",
+      TRUE ~ authorization
+    )
+  ) %>%
+  mutate(authorization = factor(authorization, levels = c("Level 1", "Level 2", "Certified")))
+
+# Add aouthorized yes/no column and rename for consistency with syc_teachers
+
+kpjay_teachers_cleaned <- kpjay_teachers_cleaned %>% 
+  mutate(kpjay_authorized = "yes") %>% 
+  rename(kpjay_authorization_level = authorization)
+
+# Reorder
+kpjay_teachers_cleaned <- kpjay_teachers_cleaned %>% 
+  select(name, kpjay_authorized, everything(), -region)
+
+# Trim possible white spaces
+kpjay_teachers_cleaned <- kpjay_teachers_cleaned %>%
+  mutate(across(where(is.character), str_trim))
+```
+
+## Step 8. Write Files
+
+While we have a solid foundation for both data sets, some manual updating needs to be completed.
+
+```{r, warning=FALSE}
+# Write csv files for manual updating
+setwd('outputs')
+write.csv(syc_teachers_final, "syc_teachers.csv", row.names = FALSE)
+write.csv(kpjay_teachers_cleaned, "kpjay_teachers.csv", row.names = FALSE)
+```
+
+## Step 9. Combine SYC Teachers and KPJAY Teachers
+
+```{r, warning=FALSE}
+# Upload manually updated syc_teachers and kpjay_teachers
+setwd('outputs')
+syc_updated <- read.csv("syc_authorized_teachers_cleansed.csv", stringsAsFactors = FALSE)
+kpjay_updated <- read.csv("kpjay_authorized_teachers_cleansed.csv", stringsAsFactors = FALSE)
+
+# Add syc_authorized to syc_updated
+syc_updated <- syc_updated %>% 
+  mutate(syc_authorized = "yes") %>% 
+  select(name, syc_authorized, everything())
+
+# Drop duplicates from syc_teachers
+syc_updated <- syc_updated %>% 
+  distinct(name, .keep_all = TRUE)
+
+# Drop duplicates from kpjay_teachers
+kpjay_updated <- kpjay_updated %>% 
+  distinct(name, .keep_all = TRUE)
+```
+
+```{r, warning=FALSE}
+# Join both dataframes
+ashtanga_teachers <- syc_updated %>% 
+  full_join(kpjay_updated, by = "name", suffix = c(".syc", ".kpjay"))
+```
+
+## Step 10. Final Clean Up
+
+```{r}
+
+# Remove blank name and "NA"
+ashtanga_teachers <- ashtanga_teachers %>%
+  filter(
+    !is.na(name),                              # Exclude actual NA
+    str_trim(name) != "",                      # Exclude empty or whitespace-only
+    str_to_upper(str_trim(name)) != "NA"       # Exclude "NA" as a string
+  )
+
+# Change order of nickname for Kranti
+ashtanga_teachers$name[ashtanga_teachers$name == "(Kranti) Renato Libonati"] <- "Renato Libonati (Kranti)"
+
+# Remove "X" column
+ashtanga_teachers <- ashtanga_teachers %>% 
+  select(-X)
+
+# Replace "NA" wit NA  
+ashtanga_teachers <- ashtanga_teachers %>%
+  mutate(across(everything(), ~na_if(.x, "NA")))
+
+# Format authorization as boolean
+ashtanga_teachers <- ashtanga_teachers %>% 
+  mutate(syc_authorized = if_else(syc_authorized == "yes", TRUE, FALSE),
+         kpjay_authorized = ifelse(kpjay_authorized == "yes", TRUE, FALSE))
+
+# Format authorization_level as factor with levels
+ashtanga_teachers <- ashtanga_teachers %>% 
+  mutate(syc_authorization_level = factor(syc_authorization_level, levels = c("Level 1", "Level 2", "Certified")),
+         kpjay_authorization_level = factor(kpjay_authorization_level, levels = c("Level 1", "Level 2", "Certified")))
+
+# Change country names for consistenecy
+ashtanga_teachers$country.kpjay[ashtanga_teachers$country.kpjay == "USA"] <- "United States"
+ashtanga_teachers$country.syc[ashtanga_teachers$country.syc == "United States of America"] <- "United States"
+ashtanga_teachers$country.kpjay[ashtanga_teachers$country.kpjay == "Uk"] <- "United Kingdom"
+ashtanga_teachers$country.syc[ashtanga_teachers$country.syc == "Republic of Korea"] <- "South Korea"
+```
+
+Use heuristics to choose the better country, state, shala, and best city.
+
+```{r}
+# Create one Country Key
+ashtanga_teachers <- ashtanga_teachers %>%
+  mutate(
+    country = if_else(
+      is.na(country.kpjay) & !is.na(country.syc), country.syc,
+      if_else(
+        is.na(country.syc) & !is.na(country.kpjay), country.kpjay,
+        if_else(
+          country.kpjay == country.syc, country.syc,
+          country.kpjay  # fallback when both are present but different
+        )
+      )
+    )
+  )
+
+
+```
+
+```{r, warning=FALSE}
+setwd('outputs')
+write.csv(ashtanga_teachers, "authorized_ashtanga_teachers.csv", na = "", row.names = FALSE)
+```

@@ -1,0 +1,48 @@
+---
+title: "Ashtanga Yoga Authorized Teachers "
+format: 
+  dashboard:
+    nav-buttons: [github]
+    github: https://github.com/richard-maestas-cpf/Authorized-Ashtanga-Yoga-Teachers
+
+---
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(gt)
+library(scales)
+library(plotly)
+
+setwd('outputs')
+teacher_data <- read.csv("authorized_ashtanga_teachers.csv")
+```
+
+# Country
+
+```{r, scrolling="true"}
+#| title: Number of Teachers by Country
+country_data <- teacher_data %>% 
+  group_by(country) %>% 
+  summarise(count = n(), .groups = "drop") %>% 
+  mutate(country = fct_reorder(country, count))
+
+p1 <- ggplot(country_data, aes(x = country, y = count)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    #title = "Number of Yoga Teachers by Country",
+    x = " ",
+    y = "Number of Authorized Teachers"
+  ) +
+  theme_minimal()
+
+ggplotly(p1)
+
+```
+
+# Teacher Data
+
+```{r, scrolling="true"}
+#| title: Teacher Name and Data
+head(teacher_data, 100) %>% gt() #replace with full data set when dashboard finalized
+```

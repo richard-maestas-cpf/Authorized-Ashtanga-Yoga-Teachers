@@ -1,0 +1,547 @@
+---
+title: "Harvesting Ashtanga Yoga Teacher Data"
+subtitle: "Web Scraping Example"
+format: html
+editor: visual
+---
+
+### Summary
+
+In this tutorial, I will download the HTML from the [teacher directory](https://sharathyogacentre.com/authorised-teachers-directory/) section of the Sharath Yoga Centre website.
+
+This directory lists some basic info on each of the authorized Ashtanga Yoga teachers in the world. It has a decent summary view option but it would be great to be able to see this summary in an interactive world map. It would also be nice to add some other summary statistics related to what level of authorizations are across the teacher network (level 1, level 2) and the Shala/Website associated with each teacher. Maybe this will give us some insight into how many of these teachers are actively teaching.
+
+I will focus on the process of downloading the data and transforming it from HTML to a usable dataframe. A future tutorial will expand on using the data for a dashboard using Shiny that will feature the interactive map.
+
+## Part 1: SYC
+
+### Step 1. Setup and Load Web Page
+
+```{r, include=FALSE}
+
+# Load Packages
+library(tidyverse) #stringr::
+library(rvest)
+library(magrittr)
+library(kableExtra)
+```
+
+```{r}
+# Download HTML from Webpage
+url <- "https://sharathyogacentre.com/authorised-teachers-directory/?wpbdp_view=all_listings"
+
+syc_webpage_html <- read_html(url)
+```
+
+### Step 2. Extract *all* Listing Details
+
+```{r}
+nodes <- syc_webpage_html %>% html_nodes(".listing-details")
+```
+
+### Step 3. Get Plain Text for Each Listing
+
+```{r}
+raw_listings <- nodes %>% html_text(trim = TRUE)
+```
+
+### Step 4. Parse Listings
+
+```{r}
+parse_listing <- function(text) {
+  # Clean excessive whitespace
+  clean <- str_squish(text)
+
+  # Extract using regular expressions
+  name <- str_match(clean, "^Name (.*?) Authorisation Level")[,2]
+  auth_level <- str_match(clean, "Authorisation Level (.*?) Shala Name")[,2]
+  shala <- str_match(clean, "Shala Name (.*?)([A-Z][a-z]+(?:\\s[A-Z][a-z]+)*)(?:\\s[A-Z]{2,3})?\\s[A-Za-z]+$")[,2]
+
+  # Extract trailing location info
+  location <- str_match(clean, "Shala Name .*? ([A-Z][a-z]+(?:\\s[A-Z][a-z]+)*)(?:\\s([A-Z]{2,3}))?\\s([A-Za-z ]+)$")
+  city <- location[,2]
+  state <- location[,3]
+  country <- location[,4]
+
+  return(data.frame(
+    name = name,
+    authorization_level = auth_level,
+    shala = shala,
+    city = city,
+    state = state,
+    country = country,
+    stringsAsFactors = FALSE
+  ))
+}
+```
+
+### Step 5. Parse Listings Into a Dataframe
+
+```{r}
+results_df <- raw_listings %>%
+  lapply(parse_listing) %>%
+  bind_rows()
+
+kable(head(results_df))
+```
+
+Now we have a dataframe with all the elements we need. However, a lot of data cleansing is still needed to make this consistent. In this case, it is probably the easiest to write a csv file with this dataframe and manually revise it. We can hard code these changes after we get a sense for what is the common issues among each data entry and if we plan to reproduce this data with updated webpage listings.
+
+```{r, warning=FALSE}
+setwd('outputs')
+write.csv(results_df, "syc_authorized_teachers.csv", row.names = FALSE)
+```
+
+## Part2: KPJAY
+
+In the section, I will repeat the process above using the Authorized Teacher list at **K.PATTABHI JOIS ASHTANGA YOGA SHALA**
+
+### Step 1. Scrape and Organize
+
+This step navigates the nested structure of the page and pulls out each **individual teacher node, authorization level, address, and contact info**.
+
+The Authorized Teacher page at Kpjayshala.com appears to be one page with the teacher list folded by geographical region (Africa, Asia, Australia/New Zealand, Central & South America, Europe, and North America). However, each region is actually it's own page. So it was necessary to scrape each page separately.
+
+*Parsing was executed in combination with harvesting the data for each page.*
+
+#### North America
+
+```{r}
+# load url
+url_2 <- "https://www.kpjayshala.com/north-america.html"
+
+page <- read_html(url_2)
+# Get the main accordion
+accordion <- page %>% html_node(".accordion")
+children <- accordion %>% html_children()
+
+# Prepare results
+results <- list()
+current_region <- NA
+
+# Helper to clean label blocks
+extract_label_value <- function(node, label_text) {
+  divs <- node %>% html_nodes("div")
+  match <- divs[str_detect(html_text(divs), regex(label_text, ignore_case = TRUE))]
+  if (length(match) > 0) {
+    val <- str_remove(html_text(match[1], trim = TRUE), regex(label_text, ignore_case = TRUE))
+    return(str_squish(val))
+  }
+  return(NA)
+}
+
+# Loop through accordion structure
+for (node in children) {
+  if (html_name(node) == "h3") {
+    current_region <- html_text(node, trim = TRUE)
+  } else if (html_name(node) == "div") {
+    panels <- node %>% html_nodes(".panel")
+
+    for (panel in panels) {
+      # Title parsing
+      panel_title <- panel %>% html_node(".panel-title")
+      full_title <- panel_title %>% html_text(trim = TRUE)
+      name <- panel_title %>% html_node("strong") %>% html_text(trim = TRUE)
+      authorization <- str_extract(full_title, "authorized level \\d+")
+      address_line <- str_remove(full_title, fixed(name))
+      address_line <- str_remove(address_line, regex("authorized level \\d+"))
+      address_line <- str_squish(address_line)
+
+      # Panel body
+      body <- panel %>% html_node(".panel-body")
+
+      phone <- extract_label_value(body, "phone")
+      email <- body %>% html_node("label[for='email'] + a") %>% html_text(trim = TRUE)
+      web <- body %>% html_node("label[for='web'] + a") %>% html_text(trim = TRUE)
+      address <- extract_label_value(body, "address")
+
+      results <- append(results, list(tibble(
+        region = current_region,
+        name = name,
+        authorization = authorization,
+        summary_address = address_line,
+        phone = phone,
+        email = ifelse(length(email) == 0, NA, email),
+        web = ifelse(length(web) == 0, NA, web),
+        address = address
+      )))
+    }
+  }
+}
+
+# Bind everything into a final data frame
+df1 <- bind_rows(results)
+print(df)
+```
+
+#### Asia
+
+```{r}
+# load url
+url_3 <- "https://www.kpjayshala.com/asia.html"
+
+page2 <- read_html(url_3)
+
+# Get the main accordion
+accordion <- page2 %>% html_node(".accordion")
+children <- accordion %>% html_children()
+
+# Prepare results
+results <- list()
+current_region <- NA
+
+# Helper to clean label blocks
+extract_label_value <- function(node, label_text) {
+  divs <- node %>% html_nodes("div")
+  match <- divs[str_detect(html_text(divs), regex(label_text, ignore_case = TRUE))]
+  if (length(match) > 0) {
+    val <- str_remove(html_text(match[1], trim = TRUE), regex(label_text, ignore_case = TRUE))
+    return(str_squish(val))
+  }
+  return(NA)
+}
+
+# Loop through accordion structure
+for (node in children) {
+  if (html_name(node) == "h3") {
+    current_region <- html_text(node, trim = TRUE)
+  } else if (html_name(node) == "div") {
+    panels <- node %>% html_nodes(".panel")
+
+    for (panel in panels) {
+      # Title parsing
+      panel_title <- panel %>% html_node(".panel-title")
+      full_title <- panel_title %>% html_text(trim = TRUE)
+      name <- panel_title %>% html_node("strong") %>% html_text(trim = TRUE)
+      authorization <- str_extract(full_title, "authorized level \\d+")
+      address_line <- str_remove(full_title, fixed(name))
+      address_line <- str_remove(address_line, regex("authorized level \\d+"))
+      address_line <- str_squish(address_line)
+
+      # Panel body
+      body <- panel %>% html_node(".panel-body")
+
+      phone <- extract_label_value(body, "phone")
+      email <- body %>% html_node("label[for='email'] + a") %>% html_text(trim = TRUE)
+      web <- body %>% html_node("label[for='web'] + a") %>% html_text(trim = TRUE)
+      address <- extract_label_value(body, "address")
+
+      results <- append(results, list(tibble(
+        region = current_region,
+        name = name,
+        authorization = authorization,
+        summary_address = address_line,
+        phone = phone,
+        email = ifelse(length(email) == 0, NA, email),
+        web = ifelse(length(web) == 0, NA, web),
+        address = address
+      )))
+    }
+  }
+}
+
+# Bind everything into a final data frame
+df2 <- bind_rows(results)
+print(df2)
+```
+
+#### Central & South America
+
+```{r}
+# load url
+url_4 <- "https://www.kpjayshala.com/central-and-south-america.html"
+
+page4 <- read_html(url_4)
+
+# Get the main accordion
+accordion <- page4 %>% html_node(".accordion")
+children <- accordion %>% html_children()
+
+# Prepare results
+results <- list()
+current_region <- NA
+
+# Helper to clean label blocks
+extract_label_value <- function(node, label_text) {
+  divs <- node %>% html_nodes("div")
+  match <- divs[str_detect(html_text(divs), regex(label_text, ignore_case = TRUE))]
+  if (length(match) > 0) {
+    val <- str_remove(html_text(match[1], trim = TRUE), regex(label_text, ignore_case = TRUE))
+    return(str_squish(val))
+  }
+  return(NA)
+}
+
+# Loop through accordion structure
+for (node in children) {
+  if (html_name(node) == "h3") {
+    current_region <- html_text(node, trim = TRUE)
+  } else if (html_name(node) == "div") {
+    panels <- node %>% html_nodes(".panel")
+
+    for (panel in panels) {
+      # Title parsing
+      panel_title <- panel %>% html_node(".panel-title")
+      full_title <- panel_title %>% html_text(trim = TRUE)
+      name <- panel_title %>% html_node("strong") %>% html_text(trim = TRUE)
+      authorization <- str_extract(full_title, "authorized level \\d+")
+      address_line <- str_remove(full_title, fixed(name))
+      address_line <- str_remove(address_line, regex("authorized level \\d+"))
+      address_line <- str_squish(address_line)
+
+      # Panel body
+      body <- panel %>% html_node(".panel-body")
+
+      phone <- extract_label_value(body, "phone")
+      email <- body %>% html_node("label[for='email'] + a") %>% html_text(trim = TRUE)
+      web <- body %>% html_node("label[for='web'] + a") %>% html_text(trim = TRUE)
+      address <- extract_label_value(body, "address")
+
+      results <- append(results, list(tibble(
+        region = current_region,
+        name = name,
+        authorization = authorization,
+        summary_address = address_line,
+        phone = phone,
+        email = ifelse(length(email) == 0, NA, email),
+        web = ifelse(length(web) == 0, NA, web),
+        address = address
+      )))
+    }
+  }
+}
+
+# Bind everything into a final data frame
+df3 <- bind_rows(results)
+print(df3)
+```
+
+#### Europe
+
+```{r}
+# load url
+url_5 <- "https://www.kpjayshala.com/europe.html"
+
+page5 <- read_html(url_5)
+
+# Get the main accordion
+accordion <- page5 %>% html_node(".accordion")
+children <- accordion %>% html_children()
+
+# Prepare results
+results <- list()
+current_region <- NA
+
+# Helper to clean label blocks
+extract_label_value <- function(node, label_text) {
+  divs <- node %>% html_nodes("div")
+  match <- divs[str_detect(html_text(divs), regex(label_text, ignore_case = TRUE))]
+  if (length(match) > 0) {
+    val <- str_remove(html_text(match[1], trim = TRUE), regex(label_text, ignore_case = TRUE))
+    return(str_squish(val))
+  }
+  return(NA)
+}
+
+# Loop through accordion structure
+for (node in children) {
+  if (html_name(node) == "h3") {
+    current_region <- html_text(node, trim = TRUE)
+  } else if (html_name(node) == "div") {
+    panels <- node %>% html_nodes(".panel")
+
+    for (panel in panels) {
+      # Title parsing
+      panel_title <- panel %>% html_node(".panel-title")
+      full_title <- panel_title %>% html_text(trim = TRUE)
+      name <- panel_title %>% html_node("strong") %>% html_text(trim = TRUE)
+      authorization <- str_extract(full_title, "authorized level \\d+")
+      address_line <- str_remove(full_title, fixed(name))
+      address_line <- str_remove(address_line, regex("authorized level \\d+"))
+      address_line <- str_squish(address_line)
+
+      # Panel body
+      body <- panel %>% html_node(".panel-body")
+
+      phone <- extract_label_value(body, "phone")
+      email <- body %>% html_node("label[for='email'] + a") %>% html_text(trim = TRUE)
+      web <- body %>% html_node("label[for='web'] + a") %>% html_text(trim = TRUE)
+      address <- extract_label_value(body, "address")
+
+      results <- append(results, list(tibble(
+        region = current_region,
+        name = name,
+        authorization = authorization,
+        summary_address = address_line,
+        phone = phone,
+        email = ifelse(length(email) == 0, NA, email),
+        web = ifelse(length(web) == 0, NA, web),
+        address = address
+      )))
+    }
+  }
+}
+
+# Bind everything into a final data frame
+df4 <- bind_rows(results)
+print(df4)
+```
+
+#### Australia & New Zealand
+
+```{r}
+# load url
+url_6 <- "https://www.kpjayshala.com/australia-and-new-zealand.html"
+
+page6 <- read_html(url_6)
+
+# Get the main accordion
+accordion <- page6 %>% html_node(".accordion")
+children <- accordion %>% html_children()
+
+# Prepare results
+results <- list()
+current_region <- NA
+
+# Helper to clean label blocks
+extract_label_value <- function(node, label_text) {
+  divs <- node %>% html_nodes("div")
+  match <- divs[str_detect(html_text(divs), regex(label_text, ignore_case = TRUE))]
+  if (length(match) > 0) {
+    val <- str_remove(html_text(match[1], trim = TRUE), regex(label_text, ignore_case = TRUE))
+    return(str_squish(val))
+  }
+  return(NA)
+}
+
+# Loop through accordion structure
+for (node in children) {
+  if (html_name(node) == "h3") {
+    current_region <- html_text(node, trim = TRUE)
+  } else if (html_name(node) == "div") {
+    panels <- node %>% html_nodes(".panel")
+
+    for (panel in panels) {
+      # Title parsing
+      panel_title <- panel %>% html_node(".panel-title")
+      full_title <- panel_title %>% html_text(trim = TRUE)
+      name <- panel_title %>% html_node("strong") %>% html_text(trim = TRUE)
+      authorization <- str_extract(full_title, "authorized level \\d+")
+      address_line <- str_remove(full_title, fixed(name))
+      address_line <- str_remove(address_line, regex("authorized level \\d+"))
+      address_line <- str_squish(address_line)
+
+      # Panel body
+      body <- panel %>% html_node(".panel-body")
+
+      phone <- extract_label_value(body, "phone")
+      email <- body %>% html_node("label[for='email'] + a") %>% html_text(trim = TRUE)
+      web <- body %>% html_node("label[for='web'] + a") %>% html_text(trim = TRUE)
+      address <- extract_label_value(body, "address")
+
+      results <- append(results, list(tibble(
+        region = current_region,
+        name = name,
+        authorization = authorization,
+        summary_address = address_line,
+        phone = phone,
+        email = ifelse(length(email) == 0, NA, email),
+        web = ifelse(length(web) == 0, NA, web),
+        address = address
+      )))
+    }
+  }
+}
+
+# Bind everything into a final data frame
+df5 <- bind_rows(results)
+print(df5)
+```
+
+#### Africa
+
+```{r}
+# load url
+url_7 <- "https://www.kpjayshala.com/authorised-teachers.html"
+
+page7 <- read_html(url_7)
+
+# Get the main accordion
+accordion <- page7 %>% html_node(".accordion")
+children <- accordion %>% html_children()
+
+# Prepare results
+results <- list()
+current_region <- NA
+
+# Helper to clean label blocks
+extract_label_value <- function(node, label_text) {
+  divs <- node %>% html_nodes("div")
+  match <- divs[str_detect(html_text(divs), regex(label_text, ignore_case = TRUE))]
+  if (length(match) > 0) {
+    val <- str_remove(html_text(match[1], trim = TRUE), regex(label_text, ignore_case = TRUE))
+    return(str_squish(val))
+  }
+  return(NA)
+}
+
+# Loop through accordion structure
+for (node in children) {
+  if (html_name(node) == "h3") {
+    current_region <- html_text(node, trim = TRUE)
+  } else if (html_name(node) == "div") {
+    panels <- node %>% html_nodes(".panel")
+
+    for (panel in panels) {
+      # Title parsing
+      panel_title <- panel %>% html_node(".panel-title")
+      full_title <- panel_title %>% html_text(trim = TRUE)
+      name <- panel_title %>% html_node("strong") %>% html_text(trim = TRUE)
+      authorization <- str_extract(full_title, "authorized level \\d+")
+      address_line <- str_remove(full_title, fixed(name))
+      address_line <- str_remove(address_line, regex("authorized level \\d+"))
+      address_line <- str_squish(address_line)
+
+      # Panel body
+      body <- panel %>% html_node(".panel-body")
+
+      phone <- extract_label_value(body, "phone")
+      email <- body %>% html_node("label[for='email'] + a") %>% html_text(trim = TRUE)
+      web <- body %>% html_node("label[for='web'] + a") %>% html_text(trim = TRUE)
+      address <- extract_label_value(body, "address")
+
+      results <- append(results, list(tibble(
+        region = current_region,
+        name = name,
+        authorization = authorization,
+        summary_address = address_line,
+        phone = phone,
+        email = ifelse(length(email) == 0, NA, email),
+        web = ifelse(length(web) == 0, NA, web),
+        address = address
+      )))
+    }
+  }
+}
+
+# Bind everything into a final data frame
+df6 <- bind_rows(results)
+print(df6)
+```
+
+### Step 2. Compile Kpjay Regional Pages
+
+```{r}
+kpjay_results <- df1 %>% 
+  bind_rows(df2, df3, df4, df5, df5)
+
+kable(head(kpjay_results))
+```
+
+The Kpjay teacher list was a lot more difficult to harvest than the SYC list. However the parsing function was much more successful at extracting each element, so we will have much less manual data cleansing. We can make the necessary changes in R when combining the two data sets in a separate tutorial.
+
+```{r, warning=FALSE}
+# Write File
+setwd('outputs')
+write.csv(kpjay_results, "kpjay_authorized_teachers.csv", row.names = FALSE)
+```
