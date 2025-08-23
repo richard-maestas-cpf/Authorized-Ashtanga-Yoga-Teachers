@@ -7,7 +7,8 @@ format:
 
 ---
 
-```{r, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE, include=FALSE} 
+                                     # Set up and libraries
 library(tidyverse)
 library(gt)
 library(scales)
@@ -15,6 +16,7 @@ library(plotly)
 
 setwd('outputs')
 teacher_data <- read.csv("authorized_ashtanga_teachers.csv")
+
 ```
 
 # Country

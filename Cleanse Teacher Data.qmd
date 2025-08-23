@@ -412,7 +412,42 @@ ashtanga_teachers <- ashtanga_teachers %>%
 
 ```
 
+Write draft copy of teacher data (manual cleanup needed).
+
 ```{r, warning=FALSE}
 setwd('outputs')
-write.csv(ashtanga_teachers, "authorized_ashtanga_teachers.csv", na = "", row.names = FALSE)
+write.csv(ashtanga_teachers, "authorized_ashtanga_teachers_draft.csv", na = "", row.names = FALSE)
+```
+
+Upload manual copy to finish cleanup.
+
+```{r, warning=FALSE}
+setwd('outputs')
+teacher_data <- read.csv("authorized_ashtanga_teachers.csv", stringsAsFactors = FALSE)
+```
+
+Consolidate State
+
+```{r}
+# Use SYC State when available and KPJAY State if not
+teacher_data <- teacher_data %>% 
+  mutate(across(c(state.syc, state.kpjay),
+                ~ .x %>%
+                  as.character() %>%
+                  str_squish() %>%
+                  na_if("") %>%
+                  na_if("NA") %>%
+                  na_if("N/A"))) %>%
+  # 2) Build final state: prefer syc, else kpjay, else blank
+  mutate(
+    state = replace_na(coalesce(state.syc, state.kpjay), " ")
+  )
+  
+```
+
+Consolidate City
+
+```{r}
+city_test <- teacher_data %>% 
+  select(name, city.kpjay, city.syc, city_2)
 ```
