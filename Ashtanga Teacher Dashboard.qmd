@@ -15,7 +15,7 @@ library(scales)
 library(plotly)
 
 setwd('outputs')
-teacher_data <- read.csv("authorized_ashtanga_teachers.csv")
+teacher_data <- readRDS("teacher_data.rds")
 
 ```
 
@@ -46,5 +46,5 @@ ggplotly(p1)
 
 ```{r, scrolling="true"}
 #| title: Teacher Name and Data
-head(teacher_data, 100) %>% gt() #replace with full data set when dashboard finalized
+head(teacher_data, 10) %>% gt() #replace with full data set when dashboard finalized
 ```

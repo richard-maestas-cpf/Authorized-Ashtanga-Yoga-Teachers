@@ -419,7 +419,11 @@ setwd('outputs')
 write.csv(ashtanga_teachers, "authorized_ashtanga_teachers_draft.csv", na = "", row.names = FALSE)
 ```
 
-Upload manual copy to finish cleanup.
+Upload manual copy to finish cleanup. Editable version is located in inputs folder:
+
+'Authorized-Ashtanga-Teachers/inputs'
+
+*\*csv is exported into 'outputs' folder.*
 
 ```{r, warning=FALSE}
 setwd('outputs')
@@ -445,9 +449,109 @@ teacher_data <- teacher_data %>%
   
 ```
 
-Consolidate City
+Consolidate columns, select relevant columns and rename columns
 
 ```{r}
-city_test <- teacher_data %>% 
-  select(name, city.kpjay, city.syc, city_2)
+# consolidate shala
+teacher_data <- teacher_data %>%
+  mutate(
+    shala = pmap_chr(
+      list(shala.syc, shala.kpjay),
+      ~{
+        parts <- c(..1, ..2) %>%
+          as.character() %>%
+          str_squish() %>%                 # trim internal/edge spaces
+          na_if("") %>%                    # "" -> NA
+          na_if("NA")                      # literal "NA" -> NA
+
+        # remove leading/trailing commas from each piece
+        parts <- str_replace_all(parts, "^,\\s*|\\s*,\\s*$", "")
+        parts <- na_if(parts, "")          # if comma removal left "", make NA
+
+        parts <- unique(parts[!is.na(parts)])
+        if (length(parts) == 0) NA_character_ else paste(parts, collapse = ", ")
+      }
+    )
+  )
+
+# consolidate address
+teacher_data <- teacher_data %>%
+  mutate(
+    address = pmap_chr(
+      list(address, summary_address),
+      ~{
+        parts <- c(..1, ..2) %>%
+          as.character() %>%
+          str_squish() %>%
+          str_remove("^:") %>%           # remove leading ":"
+          na_if("") %>%
+          na_if("NA")                    # literal NA string to real NA
+
+        parts <- parts[!is.na(parts)]    # drop NA
+        if (length(parts) == 0) {
+          NA_character_
+        } else {
+          paste(parts, collapse = ", ")
+        }
+      }
+    )
+  )
+
+# Remove leading ":" from phone
+teacher_data <- teacher_data %>% 
+  mutate(phone = phone %>% 
+           str_remove("^:\\s*") %>% 
+           na_if(""))
+
+# Change "True" to "Yes/No" for syc_authorized and kpjay_authorized, add factor levels
+
+teacher_data <- teacher_data %>%
+  mutate(
+    syc_authorized = factor(
+      if_else(!is.na(syc_authorized), "Yes", "No"),
+      levels = c("No", "Yes")
+    ),
+    kpjay_authorized = factor(
+      if_else(!is.na(kpjay_authorized), "Yes", "No"),
+      levels = c("No", "Yes")
+    )
+  )
+
+# Add factor levels for authorization levels
+teacher_data <- teacher_data %>% 
+  mutate(
+    syc_authorization_level = factor(
+      syc_authorization_level,
+      levels = c("Level 1", "Level 2", "Certified")
+    ),
+    kpjay_authorization_level = factor(
+      kpjay_authorization_level,
+      levels = c("Level 1", "Level 2", "Certified")
+  ))
+
+#Select relevant columns and rename
+teacher_data <- teacher_data %>% 
+  select(name, city_2, state, country, shala, address, phone, email, web,
+         syc_authorized, syc_authorization_level, kpjay_authorized, kpjay_authorization_level) %>% rename(city = city_2)
+
+# replace blanks with NA 
+teacher_data <- teacher_data %>%
+  mutate(
+    across(
+      c(city, state, email, web),
+      ~ .x %>% 
+        str_squish() %>% 
+        na_if("") %>% 
+        na_if("NA") %>%
+        na_if("N/A")
+    )
+  )
+
+```
+
+Write file
+
+```{r, warning=FALSE}
+setwd('outputs')
+saveRDS(teacher_data, "teacher_data.rds")
 ```
