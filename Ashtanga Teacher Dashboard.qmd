@@ -13,16 +13,110 @@ library(tidyverse)
 library(gt)
 library(scales)
 library(plotly)
+library(glue)
+library(leaflet)
 
-setwd('outputs')
-teacher_data <- readRDS("teacher_data.rds")
+
+teacher_data <- readRDS("outputs/teacher_data.rds")
+worldcities <- read.csv("inputs/worldcities.csv")
 
 ```
+# USA Map
+
+```{r, warning=FALSE}
+#| Title: USA Authorized Ashtanga Teachers
+
+# usa teacher df
+usa_teachers <- teacher_data %>%
+  filter(country == "United States") %>%
+  rowwise() %>%
+  mutate(
+    ashram = paste(
+      c(if (syc_authorized == "Yes")  "SYC"   else NULL,
+        if (kpjay_authorized == "Yes") "KPJAY" else NULL),
+      collapse = ", "
+    ),
+    level = paste(
+      c(if (syc_authorized == "Yes")  as.character(syc_authorization_level)   else NULL,
+        if (kpjay_authorized == "Yes") as.character(kpjay_authorization_level) else NULL),
+      collapse = ", "
+    )
+  ) %>%
+  ungroup() %>%
+  mutate(
+    ashram = na_if(str_squish(ashram), ""),
+    level  = na_if(str_squish(level),  "")
+  ) %>%
+  select(name, ashram, level, city, state)
+
+# plot
+# --- 1) Prep: normalize state to full name for joining with worldcities -------
+# worldcities typically uses full state names in `admin_name` for US rows
+state_full_from_abb <- function(x) {
+  out <- x
+  out[x %in% state.abb] <- state.name[match(x[x %in% state.abb], state.abb)]
+  out
+}
+
+usa_teachers_geo <- usa_teachers %>%
+  mutate(
+    city_clean  = str_squish(city),
+    state_full  = state_full_from_abb(str_squish(state)),
+    key_teacher = str_to_lower(paste(city_clean, state_full, sep = ", "))
+  )
+
+world_us <- worldcities %>%
+  filter(str_to_lower(country) %in% c("united states", "united states of america")) %>%
+  transmute(
+    city_wc     = city,
+    admin_name,              # full state name
+    lat, lng,
+    key_world   = str_to_lower(paste(str_squish(city), str_squish(admin_name), sep = ", "))
+  )
+
+# Join on city + full state name
+usa_teachers_geo <- usa_teachers_geo %>%
+  left_join(world_us, by = c("key_teacher" = "key_world"))
+
+# Optional: see any unmatched rows (missing lat/lng)
+missing_geo <- usa_teachers_geo %>% filter(is.na(lat) | is.na(lng)) %>%
+  distinct(city, state, state_full)
+# View(missing_geo)
+
+# --- 2) Build one popup per city (combine multiple teachers in same city) ----
+popup_df <- usa_teachers_geo %>%
+  filter(!is.na(lat), !is.na(lng)) %>%
+  mutate(
+    popup_line = glue("<b>{name}</b><br/>{ashram %||% ''}{ifelse(!is.na(ashram) & !is.na(level), ', ', '')}{level %||% ''}")
+  ) %>%
+  group_by(city_clean, state_full, lat, lng) %>%
+  summarise(
+    popup = paste0(
+      glue("<div style='margin-bottom:6px'>{popup_line}</div>"),
+      collapse = "<hr style='margin:6px 0'/>"
+    ),
+    .groups = "drop"
+  )
+
+# --- 3) Interactive map with clustering --------------------------------------
+leaflet(popup_df, options = leafletOptions(minZoom = 3, maxZoom = 18)) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(
+    lng = ~lng, lat = ~lat,
+    radius = 6, stroke = FALSE, fillOpacity = 0.85,
+    popup = ~popup,
+    clusterOptions = markerClusterOptions(disableClusteringAtZoom = 10)
+  ) %>%
+  setView(lng = -98.5, lat = 39.8, zoom = 4)
+
+```
+
 
 # Authorization Level
 
 ```{r}
 #| title: Authorized teachers by institution and level
+
 # ensure consistent factor order
 lvl_order <- c("Level 1","Level 2","Certified")
 
@@ -78,7 +172,7 @@ p1 <- ggplot(country_data, aes(x = country, y = count)) +
   ) +
   theme_minimal()
 
-ggplotly(p1)
+ggplotly(p1, height = 1000)
 
 ```
 
