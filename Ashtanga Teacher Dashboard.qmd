@@ -19,6 +19,46 @@ teacher_data <- readRDS("teacher_data.rds")
 
 ```
 
+# Authorization Level
+
+```{r}
+#| title: Authorized teachers by institution and level
+# ensure consistent factor order
+lvl_order <- c("Level 1","Level 2","Certified")
+
+auth_level <- bind_rows(
+  teacher_data %>%
+    transmute(institution = "SYC",
+              level = factor(syc_authorization_level, levels = lvl_order),
+              authorized = syc_authorized),
+  teacher_data %>%
+    transmute(institution = "KPJAY",
+              level = factor(kpjay_authorization_level, levels = lvl_order),
+              authorized = kpjay_authorized)
+) %>%
+  filter(authorized == "Yes") %>%                    # keep only authorized teachers
+  count(institution, level, name = "n") %>%
+  complete(institution, level, fill = list(n = 0))   # fill missing combos with 0
+
+# Plot: side-by-side facets, x=level, y=count
+p2 <- ggplot(auth_level, aes(x = level, y = n, fill = level)) +
+  geom_col() +
+  facet_wrap(~ institution, nrow = 1) +
+  labs(
+    x = "Authorization level",
+    y = "Count",
+    title = ""
+  ) +
+  scale_fill_manual(
+    values = c("Level 1" = "Light Blue", 
+               "Level 2" = "Steel Blue", 
+               "Certified" = "Dark Gray")
+  ) +
+  theme_minimal()
+
+ggplotly(p2)
+
+```
 # Country
 
 ```{r, scrolling="true"}
